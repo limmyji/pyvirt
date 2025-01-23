@@ -104,21 +104,21 @@ def _connectToVm(vm_name):
         password = ''.join(random.choice(string.ascii_lowercase) for _ in range(8))
         host_path = "%s\\%s\\password.txt" % (vm_password_store, vm_name)
         print("password will be: %s" % (password))
-        cmd = "New-Item \"%s\" -Force" % (host_path)
-        result = _runShellCommand(cmd)
-        if "password.txt" not in result.stdout or result.stderr != "":
+        create_cmd = "New-Item \"%s\" -Force" % (host_path)
+        create_result = _runShellCommand(create_cmd)
+        if "password.txt" not in create_result.stdout or create_result.stderr != "":
             print("ERROR WHEN GENERATING PASSWORD")
-            print("command: %s" % (cmd))
-            print(result.stderr)
-            print(result.stdout)
+            print("command: %s" % (create_cmd))
+            print(create_result.stderr)
+            print(create_result.stdout)
             return None
-        cmd2 = "Set-Content \"%s\" %s" % (host_path, password)
-        result2 = _runShellCommand(cmd2)
-        if result2.stdout != "" or result2.stderr != "":
+        set_pass_cmd = "Set-Content \"%s\" %s" % (host_path, password)
+        set_pass_result = _runShellCommand(set_pass_cmd)
+        if set_pass_result.stdout != "" or set_pass_result.stderr != "":
             print("ERROR WHEN GENERATING PASSWORD")
-            print("command: %s" % (cmd2))
-            print(result2.stderr)
-            print(result2.stdout)
+            print("command: %s" % (set_pass_cmd))
+            print(set_pass_result.stderr)
+            print(set_pass_result.stdout)
             return None
         print("generated password!")
         # copying password to guest, a script on the guest will then set the guest password to
@@ -172,6 +172,15 @@ def _createVM(vm_name):
         print(config_result.stderr)
         print(config_result.stdout)
         return False
+    
+    # attatch the specified virtual switch in config to this vm
+    virtual_switch_cmd = "Connect-VMNetworkAdapter -VMName \"%s\" -Name \"Network Adapter\" -SwitchName \"%s\"" % (vm_name, virtual_switch)
+    virtual_switch_result = _runShellCommand(virtual_switch_cmd)
+    if virtual_switch_result.stdout != "" or virtual_switch_result.stderr != "":
+        print("ERROR WHEN ASSIGNING virtual switch!")
+        print("command: %s" % (virtual_switch_cmd))
+        print(virtual_switch_result.stderr)
+        print(virtual_switch_result.stdout)
 
     # done
     print("created vm %s!" % (vm_name))
@@ -192,23 +201,23 @@ def _deleteVM(vm_name):
         return False
 
     # delete VM and its config files
-    cmd = "Remove-VM -Name \"%s\" -Force" % (vm_name)
-    result = _runShellCommand(cmd)
-    if result.stderr != "" or result.stdout != "":
+    delete_cmd = "Remove-VM -Name \"%s\" -Force" % (vm_name)
+    delete_result = _runShellCommand(delete_cmd)
+    if delete_result.stderr != "" or delete_result.stdout != "":
         print("ERROR WHEN DELETING CONFIG OF %s!" % (vm_name))
-        print("command: %s" % (cmd))
-        print(result.stderr)
-        print(result.stdout)
+        print("command: %s" % (delete_cmd))
+        print(delete_result.stderr)
+        print(delete_result.stdout)
         return False
 
     # delete .vhdx
-    cmd2 = "Remove-Item \"%s\\%s.vhdx\"" % (vhdx_store, vm_name)
-    result2 = _runShellCommand(cmd2)
-    if result2.stderr != "" or result2.stdout != "":
+    vhdx_delete_cmd = "Remove-Item \"%s\\%s.vhdx\"" % (vhdx_store, vm_name)
+    vhdx_delete_result = _runShellCommand(vhdx_delete_cmd)
+    if vhdx_delete_result.stderr != "" or vhdx_delete_result.stdout != "":
         print("ERROR WHEN DELETING .vhdx OF %s!" % (vm_name))
-        print("command: %s" % (cmd2))
-        print(result2.stderr)
-        print(result2.stdout)
+        print("command: %s" % (vhdx_delete_cmd))
+        print(vhdx_delete_result.stderr)
+        print(vhdx_delete_result.stdout)
         return False
     print("deleted vm %s." % (vm_name))
     return True
@@ -310,23 +319,39 @@ def _assignVF(vm_name):
         print("ERROR, %s IS CURRENTLY ON, CANT ASSIGN VF" % (vm_name))
         return False
     
+    # get partition adapter stats of host gpu
+    get_gpu_cmd = "Get-VMPartitionableGpu"
+    gpu_result = _runShellCommand(get_gpu_cmd)
+    if gpu_result.stdout != "":
+        print("ERROR WHEN FETCHING GPU PARTITION DETAILS!")
+        print("command: %s" % (get_gpu_cmd))
+        print(gpu_result.stderr)
+        print(gpu_result.stdout)
+
+    # dict with partition adapter stats of GPU
+    specs_dict = {}
+    gpu_result.stdout.replace(' ', '')
+    gpu_result.stdout.split('\n')
+    for line in gpu_result.stdout:
+        split = line.split(':')
+        specs_dict[split[0]] = specs_dict[split[1]]
+
     # cmds to configure the partition
     cmd_list = [
         "Add-VMGpuPartitionAdapter -VMName \"%s\"" % (vm_name),
-        # in the future make more modular, instead of hardcoding stuff like 
-        #   -MinPartitionVRAM, get the values from first running Get-VMPartitionableGpu
-        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MinPartitionVRAM 80000000" % (vm_name),
-        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MaxPartitionVRAM 1000000000" % (vm_name),
-        "Set-VMGpuPartitionAdapter -VMName \"%s\" -OptimalPartitionVRAM 1000000000" % (vm_name),
-        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MinPartitionEncode 80000000" % (vm_name),
-        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MaxPartitionEncode 18446744073709551615" % (vm_name),
-        "Set-VMGpuPartitionAdapter -VMName \"%s\" -OptimalPartitionEncode 18446744073709551615" % (vm_name),
-        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MinPartitionDecode 80000000" % (vm_name),
-        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MaxPartitionDecode 1000000000" % (vm_name),
-        "Set-VMGpuPartitionAdapter -VMName \"%s\" -OptimalPartitionDecode 1000000000" % (vm_name),
-        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MinPartitionCompute 80000000" % (vm_name),
-        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MaxPartitionCompute 1000000000" % (vm_name),
-        "Set-VMGpuPartitionAdapter -VMName \"%s\" -OptimalPartitionCompute 1000000000" % (vm_name),
+        # get the values from first running Get-VMPartitionableGpu
+        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MinPartitionVRAM %s" % (vm_name, specs_dict["MinPartitionVRAM"]),
+        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MaxPartitionVRAM %s" % (vm_name, specs_dict["MaxPartitionVRAM"]),
+        "Set-VMGpuPartitionAdapter -VMName \"%s\" -OptimalPartitionVRAM %s" % (vm_name, specs_dict["OptimalPartitionVRAM"]),
+        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MinPartitionEncode %s" % (vm_name, specs_dict["MinPartitionEncode"]),
+        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MaxPartitionEncode %s" % (vm_name, specs_dict["MaxPartitionEncode"]),
+        "Set-VMGpuPartitionAdapter -VMName \"%s\" -OptimalPartitionEncode %s" % (vm_name, specs_dict["OptimalPartitionEncode"]),
+        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MinPartitionDecode %s" % (vm_name, specs_dict["MinPartitionDecode"]),
+        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MaxPartitionDecode %s" % (vm_name, specs_dict["MaxPartitionDecode"]),
+        "Set-VMGpuPartitionAdapter -VMName \"%s\" -OptimalPartitionDecode %s" % (vm_name, specs_dict["OptimalPartitionDecode"]),
+        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MinPartitionCompute %s" % (vm_name, specs_dict["MinPartitionCompute"]),
+        "Set-VMGpuPartitionAdapter -VMName \"%s\" -MaxPartitionCompute %s" % (vm_name, specs_dict["MaxPartitionCompute"]),
+        "Set-VMGpuPartitionAdapter -VMName \"%s\" -OptimalPartitionCompute %s" % (vm_name, specs_dict["OptimalPartitionCompute"]),
         "Set-VM -GuestControlledCacheTypes $true -VMName \"%s\"" % (vm_name),
         "Set-VM -LowMemoryMappedIoSpace 1Gb -VMName \"%s\"" % (vm_name),
         "Set-VM -HighMemoryMappedIoSpace 32Gb -VMName \"%s\"" % (vm_name)

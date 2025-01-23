@@ -95,6 +95,8 @@ class server:
             if end_result == FAILURE:
                 print("[ERROR]:       error when fini server")
                 return FAILURE
+        self.active_sessions = []
+        self.active_count = 0
         return SUCCESS
 
 
