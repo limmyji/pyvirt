@@ -5,7 +5,7 @@ import random
 import string
 import re
 
-import config
+import main.config as config
 # documentation for each of these params can be found in config.py
 base_vm_name = config.base_vm_name
 base_vhdx = config.base_vhdx
@@ -87,7 +87,8 @@ def _copyFileToVm(vm_name, host_path, guest_path):
 
 # gets vmname/ip/username/password combo for rdp
 # return: [vm name, ip, guest username, guest password]
-def _connectToVm(vm_name):
+# default method we will use for waiting is time.sleep
+def _connectToVm(vm_name, sleep_func=time.sleep):
     print("########## _connectToVm(%s) ##########" % (vm_name))
     if not _isExist(vm_name):
         print("%s does not exist, cannot connect" % (vm_name))
@@ -127,7 +128,7 @@ def _connectToVm(vm_name):
         if not _copyFileToVm(vm_name, host_path, "%s\\password.txt" % (guest_script_store)):
             return None
         print("copied password to %s" % (vm_name))
-        time.sleep(30)
+        sleep_func(30)
     
     # get ip, return these results
     ip = _getIp(vm_name)
@@ -223,8 +224,8 @@ def _deleteVM(vm_name):
     return True
 
 
-# power on a VM
-def _startVM(vm_name):
+# power on a VM, default method we will use for waiting is time.sleep
+def _startVM(vm_name, sleep_func=time.sleep):
     print("########## _startVM(%s) ##########" % (vm_name))
     if not _isExist(vm_name):
         return False
@@ -242,7 +243,7 @@ def _startVM(vm_name):
         print(result.stdout)
         return False
 
-    time.sleep(20)
+    sleep_func(20)
     # check if power has been sent
     if _isOn(vm_name):
         print("powered on %s!" % (vm_name))
@@ -251,8 +252,8 @@ def _startVM(vm_name):
     return False
 
 
-# shutdown a VM
-def _stopVM(vm_name):
+# shutdown a VM, default method we will use for waiting is time.sleep
+def _stopVM(vm_name, sleep_func=time.sleep):
     print("########## _stopVM(%s) ##########" % (vm_name))
     if not _isExist(vm_name):
         return False
@@ -270,7 +271,7 @@ def _stopVM(vm_name):
         print(result.stdout)
         return False
 
-    time.sleep(10)
+    sleep_func(10)
     # check if VM is shutdown
     if not _isOn(vm_name):
         print("shutdown %s!" % (vm_name))

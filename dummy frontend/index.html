@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register</title>
+</head>
+<body>
+    <h1>RequestVM</h1>
+    <form id="requestForm">
+        <label for="requestUsername">Username:</label>
+        <input type="text" id="requestUsername" name="requestUsername" required>
+        <button type="submit">Request</button>
+    </form>
+    
+    <br>
+
+    <h1>forceEndSession</h1>
+    <form id="endForm">
+        <label for="endUsername">Username:</label>
+        <input type="text" id="endUsername" name="endUsername" required>
+        <button type="submit">End Session</button>
+    </form>
+
+    <script>
+        // functionality of requesting vm
+        document.getElementById('requestForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const username = document.getElementById('requestUsername').value;
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/requestSession', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username: username }),
+                });
+
+                const data = await response.json();
+
+                // alert the result of trying to add user to queue
+                if (response.ok){
+                    alert(data.message);
+                } else {
+                    alert(data.message || 'request failed');
+                }
+
+                // function to get session details once this request has been approved and has
+                //   had a session created for it
+                const callbackResult = await fetch('http://127.0.0.1:5000/sessionCallback', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username: username }),
+                });
+
+                const callbackData = await callbackResult.json();
+
+                // alert popup with session details, or alert error
+                if (callbackResult.ok){
+                    alert(callbackData.sessionDetails);
+                } else {
+                    alert('callback error')
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error requesting session');
+            }
+        });
+
+        // functionality of requesting to end a session
+        document.getElementById('endForm').addEventListener('submit', async (event) => {
+            event.preventDefault();
+
+            const username = document.getElementById('endUsername').value;
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/endSession', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ username: username }),
+                });
+
+                const data = await response.json();
+
+                // alert with the end results
+                if (response.ok){
+                    alert(data.message);
+                } else {
+                    alert(data.message || 'ending failed');
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error requesting session');
+            }
+        });
+    </script>
+</body>
+</html>

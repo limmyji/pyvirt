@@ -1,11 +1,12 @@
 import threading
 import time
-import instance
+import main.instance as instance
 import uuid
 from collections import deque
 
-from shared import SUCCESS
-from shared import FAILURE
+import main.shared as shared
+from main.shared import SUCCESS
+from main.shared import FAILURE
 
 SCAN_STOP = 0
 SCAN_START = 1
@@ -15,10 +16,10 @@ def test_callback(session_details):
     print(session_details)
 
 
-class server:
+class server(object):
     def scanQueue(self):
         while (1):
-            time.sleep(30)
+            self.sleep_func(30)
             # if it is itme to stop scanning
             if self.scaning == SCAN_STOP:
                 return
@@ -48,7 +49,7 @@ class server:
             while num_to_allocate and self.queue_count:
                 next_user = self.user_queue.popleft()
                 self.queue_count -= 1
-                new_instance = instance.instance(name="VM-%s" % (uuid.uuid4()), user=next_user[0], callback=next_user[1], sesion_length=300)
+                new_instance = instance.instance(name="VM-%s" % (uuid.uuid4()), user=next_user[0], callback=next_user[1], sesion_length=300, sleep_func=self.sleep_func)
                 callback_array = [FAILURE]
                 start_thread = threading.Thread(target=new_instance.start, args=(callback_array,)) # thread for each instance we need to start
                 start_thread_list.append([start_thread, callback_array, new_instance])
@@ -65,7 +66,7 @@ class server:
             print("[INFO]:        done scan")
 
 
-    def __init__(self, vm_max, callback=test_callback):
+    def __init__(self, vm_max, callback=test_callback, sleep_func=time.sleep):
         self.vm_count = vm_max  # max number of active vms we can have at a time
         
         self.scan_thread = threading.Thread(target=self.scanQueue, args=())  # thread where function for scanning the queue is looped over and over
@@ -80,6 +81,9 @@ class server:
         # callback function used to send connection details to those who requested them (connection details = [vm name, ip, guest username, guest password])
         #   default is the above test_callback function, which just prints these details out
         self.callback = callback
+
+        # function used to sleeping
+        self.sleep_func = sleep_func
 
         # start scanning
         self.scan_thread.start()
@@ -106,8 +110,10 @@ class server:
             print("[INFO]:        starting server reset")
         else:
             print("[ERROR]:       force server reset")
-        self.fini()
+        if self.fini() == FAILURE:
+            return FAILURE
         self.__init__(vm_max=self.vm_count)
+        return SUCCESS
     
 
     ### assume user is a unique string identifier for each user
@@ -136,14 +142,13 @@ class server:
     # end a session
     def forceEndSession(self, user):
         print("[INFO]:        ending session of user %s" % (user))
-        for i in range(len(self.active_sessions)):
-            session = self.active_sessions[i]
+        for session in self.active_sessions:
             if session.user == user and session.posted:
                 end_result = session.end()
                 if end_result == FAILURE:
                     print("[ERROR]:       error when ending sessions of user %s" % (user))
                     return FAILURE
-                self.active_sessions.pop(i)
+                self.active_sessions.remove(session)
                 self.active_count -= 1
                 break
         return SUCCESS

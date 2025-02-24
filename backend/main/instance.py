@@ -1,12 +1,12 @@
-import shared
-import config
+import main.shared as shared
+import main.config as config
 import time
 
-from shared import SUCCESS
-from shared import FAILURE
+from main.shared import SUCCESS
+from main.shared import FAILURE
 
 class instance:
-    def __init__(self, name, user, sesion_length, callback):
+    def __init__(self, name, user, sesion_length, callback, sleep_func):
         # name of the vm, time allocation of the session in seconds, user of the vm
         self.vm_name = name
         self.end_time = sesion_length
@@ -17,7 +17,8 @@ class instance:
         self.posted = False
         # callback function to return session details
         self.callback = callback
-
+        # function used to wait, passed on from server
+        self.sleep_func = sleep_func
 
     def is_on(self):
         # see if vm is stil alive
@@ -43,18 +44,19 @@ class instance:
                 return FAILURE
 
         # power on vm
-        start_result = shared._startVM(self.vm_name)
+        start_result = shared._startVM(self.vm_name, sleep_func=self.sleep_func)
         if not start_result:
             print("[ERROR]:       error when starting vm %s" % (self.vm_name))
             return FAILURE
 
         # connect to vm, get login details
-        connect_result = shared._connectToVm(self.vm_name)
+        connect_result = shared._connectToVm(self.vm_name, sleep_func=self.sleep_func)
         if not connect_result:
             print("[ERROR]:       error when connecting to vm %s" % (self.vm_name))
             return FAILURE
 
         self.login_details = connect_result
+        self.login_details.append(self.user)
         # done posting, send result via callback function
         self.posted = True
         self.end_time += time.time()
@@ -71,7 +73,7 @@ class instance:
         print("[INFO]:        attempting to stop session %s..." % (self.vm_name))
 
         # stop vm
-        stop_result = shared._stopVM(self.vm_name)
+        stop_result = shared._stopVM(self.vm_name, sleep_func=self.sleep_func)
         if not stop_result:
             print("[ERROR]:       error when stopping vm %s" % (self.vm_name))
             return FAILURE
