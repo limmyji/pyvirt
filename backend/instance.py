@@ -1,9 +1,9 @@
-import main.shared as shared
-import main.config as config
+import shared
+import config
 import time
 
-from main.shared import SUCCESS
-from main.shared import FAILURE
+from shared import SUCCESS
+from shared import FAILURE
 
 class instance:
     def __init__(self, name, user, sesion_length, callback, sleep_func):

@@ -5,7 +5,7 @@ import random
 import string
 import re
 
-import main.config as config
+import config
 # documentation for each of these params can be found in config.py
 base_vm_name = config.base_vm_name
 base_vhdx = config.base_vhdx
@@ -323,7 +323,7 @@ def _assignVF(vm_name):
     # get partition adapter stats of host gpu
     get_gpu_cmd = "Get-VMPartitionableGpu"
     gpu_result = _runShellCommand(get_gpu_cmd)
-    if gpu_result.stdout != "":
+    if gpu_result.stderr != "":
         print("ERROR WHEN FETCHING GPU PARTITION DETAILS!")
         print("command: %s" % (get_gpu_cmd))
         print(gpu_result.stderr)
@@ -331,11 +331,12 @@ def _assignVF(vm_name):
 
     # dict with partition adapter stats of GPU
     specs_dict = {}
-    gpu_result.stdout.replace(' ', '')
-    gpu_result.stdout.split('\n')
-    for line in gpu_result.stdout:
+    specs = gpu_result.stdout.replace(' ', '')
+    specs = specs.split('\n')
+    for line in specs:
         split = line.split(':')
-        specs_dict[split[0]] = specs_dict[split[1]]
+        if len(split) == 2 and split[1]:
+            specs_dict[split[0]] = split[1]
 
     # cmds to configure the partition
     cmd_list = [

@@ -1,8 +1,8 @@
 from flask import request, jsonify
 from routes_config import app
-from main.server import server as Server
-from main.shared import FAILURE
-from main.shared import SUCCESS
+from server import server as Server
+from shared import FAILURE
+from shared import SUCCESS
 
 
 from flask_socketio import SocketIO

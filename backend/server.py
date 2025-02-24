@@ -1,12 +1,11 @@
 import threading
 import time
-import main.instance as instance
+import instance
 import uuid
 from collections import deque
 
-import main.shared as shared
-from main.shared import SUCCESS
-from main.shared import FAILURE
+from shared import SUCCESS
+from shared import FAILURE
 
 SCAN_STOP = 0
 SCAN_START = 1
